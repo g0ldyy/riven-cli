@@ -92,5 +92,11 @@ class RivenClient:
         except Exception:
             return False
 
+    async def get_all_settings(self) -> dict[str, Any]:
+        return await self.get("/settings/get/all")
+
+    async def set_all_settings(self, settings: dict[str, Any]) -> dict[str, Any]:
+        return await self.post("/settings/set/all", json=settings)
+
 
 client = RivenClient()
