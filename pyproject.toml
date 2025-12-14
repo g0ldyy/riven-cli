@@ -1,6 +1,6 @@
 [project]
 name = "riven-cli"
-version = "0.1.1"
+version = "0.1.2"
 authors = [{ name = "Goldy" }]
 description = "A powerful TUI for Riven. Manage your library, search content, and monitor your server directly from the terminal."
 readme = "README.md"
