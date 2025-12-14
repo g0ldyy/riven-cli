@@ -232,9 +232,9 @@ class SearchScreen:
                     raise Exception(
                         "No TVDB ID found for this show (backend requirement)"
                     )
-                payload["tvdb_ids"] = str(tvdb_id)
+                payload["tvdb_ids"] = [str(tvdb_id)]
             else:
-                payload["tmdb_ids"] = str(item["id"])
+                payload["tmdb_ids"] = [str(item["id"])]
 
             async with client as c:
                 response = await c.post("/items/add", json=payload)
