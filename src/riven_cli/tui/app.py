@@ -34,7 +34,7 @@ class TUIApp:
     async def refresh_loop(self):
         while self.running:
             self.layout.update(self.current_screen.render())
-            await asyncio.sleep(0.1)  # 10 FPS update rate
+            await asyncio.sleep(0.033)  # 30 FPS update rate
 
     async def run(self):
         # Initial Route
@@ -45,7 +45,7 @@ class TUIApp:
 
         # Main Loop
         with Live(
-            self.layout, console=self.console, screen=True, refresh_per_second=10
+            self.layout, console=self.console, screen=True, refresh_per_second=30
         ):
             # Start the refresh loop background task
             render_task = asyncio.create_task(self.refresh_loop())
