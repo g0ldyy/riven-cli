@@ -1,5 +1,6 @@
 import asyncio
 import readchar
+import ast
 from rich.panel import Panel
 from rich.align import Align
 from rich.text import Text
@@ -32,6 +33,7 @@ class SettingsScreen:
         self.scroll_offset = 0
         self.edit_mode = False
         self.input_buffer = ""
+        self.cursor_position = 0  # Cursor position in input_buffer
         self.message = None
 
     async def on_mount(self):
@@ -205,8 +207,16 @@ class SettingsScreen:
         else:
             edit_title = self.backend_items[self.selected_index]["key"]
 
+        # Show cursor at correct position
+        before_cursor = self.input_buffer[: self.cursor_position]
+        after_cursor = self.input_buffer[self.cursor_position :]
+        display_text = Text()
+        display_text.append(before_cursor, style="bold white")
+        display_text.append("█", style="bold cyan blink")
+        display_text.append(after_cursor, style="bold white")
+
         input_panel = Panel(
-            Align.center(Text(self.input_buffer + "█", style="bold white")),
+            Align.center(display_text),
             title=f"Editing: {edit_title}",
             style="yellow",
             border_style="red",
@@ -264,6 +274,9 @@ class SettingsScreen:
                 val = self.backend_items[self.selected_index]["value"]
                 self.input_buffer = str(val)
 
+        # Position cursor at end of buffer
+        self.cursor_position = len(self.input_buffer)
+
     async def _handle_edit_input(self, key: str):
         if key == readchar.key.ENTER:
             self.edit_mode = False
@@ -271,10 +284,31 @@ class SettingsScreen:
         elif key == readchar.key.CTRL_Q:
             self.edit_mode = False
             self.input_buffer = ""
+            self.cursor_position = 0
+        elif key == readchar.key.LEFT:
+            # Move cursor left
+            if self.cursor_position > 0:
+                self.cursor_position -= 1
+        elif key == readchar.key.RIGHT:
+            # Move cursor right
+            if self.cursor_position < len(self.input_buffer):
+                self.cursor_position += 1
         elif key == readchar.key.BACKSPACE:
-            self.input_buffer = self.input_buffer[:-1]
+            # Delete character before cursor
+            if self.cursor_position > 0:
+                self.input_buffer = (
+                    self.input_buffer[: self.cursor_position - 1]
+                    + self.input_buffer[self.cursor_position :]
+                )
+                self.cursor_position -= 1
         elif len(key) == 1 and key.isprintable():
-            self.input_buffer += key
+            # Insert character at cursor position
+            self.input_buffer = (
+                self.input_buffer[: self.cursor_position]
+                + key
+                + self.input_buffer[self.cursor_position :]
+            )
+            self.cursor_position += 1
 
     async def _save_edit_value(self):
         new_val = self.input_buffer
@@ -300,13 +334,18 @@ class SettingsScreen:
                     converted_val = float(new_val)
                 elif original_type == "bool":
                     converted_val = new_val.lower() in ["true", "1", "yes"]
+                elif original_type == "list":
+                    # Parse list from string representation
+                    converted_val = ast.literal_eval(new_val)
+                    if not isinstance(converted_val, list):
+                        raise ValueError("Not a valid list")
                 else:
                     converted_val = new_val
 
                 item["value"] = converted_val
                 self.message = "[yellow]Value updated in memory. Press S to push to backend.[/yellow]"
 
-            except ValueError:
+            except (ValueError, SyntaxError):
                 self.message = (
                     "[red]Invalid format for type " + original_type + "[/red]"
                 )
