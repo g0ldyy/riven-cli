@@ -24,6 +24,9 @@ class SearchScreen:
         self.total_pages = 1
         self.scroll_offset = 0
 
+    async def shutdown(self):
+        await tmdb_client.close()
+
     def start_search(self):
         self.page = 1
         self.total_pages = 1

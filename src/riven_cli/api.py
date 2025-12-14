@@ -62,6 +62,29 @@ class RivenClient:
                 raise Exception(f"{resp.status} {resp.reason}: {text}")
             return await resp.json()
 
+    async def get_logs(self) -> dict[str, Any]:
+        return await self.get("/logs")
+
+    async def stream_logs(self):
+        assert self.session
+        url = f"{self.base_url}/api/v1/stream/logging"
+        # Disable timeout for streaming
+        timeout = aiohttp.ClientTimeout(
+            total=None, connect=None, sock_read=None, sock_connect=None
+        )
+        async with self.session.get(
+            url, headers={"Accept": "text/event-stream"}, timeout=timeout
+        ) as resp:
+            if not resp.ok:
+                text = await resp.text()
+                raise Exception(f"{resp.status} {resp.reason}: {text}")
+
+            async for line in resp.content:
+                yield line.decode("utf-8")
+
+    async def upload_logs(self) -> dict[str, Any]:
+        return await self.post("/upload_logs")
+
     async def check_health(self) -> bool:
         try:
             await self.get("/health")

@@ -132,7 +132,8 @@ class DashboardScreen:
         footer_text.append("[L] Library  ", style="bold yellow")
         footer_text.append("[S] Settings  ", style="bold cyan")
         footer_text.append("[R] Refresh  ", style="bold green")
-        footer_text.append("[F] Find New", style="bold magenta")
+        footer_text.append("[F] Find New  ", style="bold magenta")
+        footer_text.append("[G] Logs", style="bold white")
 
         footer = Panel(Align.center(footer_text), title="Menu")
 
@@ -154,3 +155,5 @@ class DashboardScreen:
             self.app.switch_to("settings")
         elif key.lower() == "f":
             self.app.switch_to("search")
+        elif key.lower() == "g":
+            self.app.switch_to("logs")

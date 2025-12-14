@@ -11,6 +11,7 @@ from riven_cli.tui.screens.library import LibraryScreen
 from riven_cli.tui.screens.details import ItemDetailsScreen
 from riven_cli.tui.screens.settings import SettingsScreen
 from riven_cli.tui.screens.search import SearchScreen
+from riven_cli.tui.screens.logs import LogsScreen
 
 
 class TUIApp:
@@ -27,6 +28,7 @@ class TUIApp:
             "details": ItemDetailsScreen(self),
             "settings": SettingsScreen(self),
             "search": SearchScreen(self),
+            "logs": LogsScreen(self),
         }
 
     async def refresh_loop(self):
@@ -65,6 +67,11 @@ class TUIApp:
             finally:
                 self.running = False
                 await render_task
+
+                # Cleanup screens
+                for screen in self.screens.values():
+                    if hasattr(screen, "shutdown"):
+                        await screen.shutdown()
 
     def switch_to(self, screen_name: str):
         self.current_screen = self.screens[screen_name]
