@@ -1,5 +1,7 @@
-import aiohttp
 from typing import Any, Optional
+
+import aiohttp
+
 from riven_cli.config import settings
 
 

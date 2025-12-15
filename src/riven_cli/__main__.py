@@ -1,5 +1,6 @@
 import asyncio
 import sys
+
 from rich.console import Console
 
 from riven_cli.tui.app import TUIApp

@@ -1,17 +1,18 @@
 import asyncio
+
 import readchar
 from rich.console import Console
-from rich.live import Live
 from rich.layout import Layout
+from rich.live import Live
 
 from riven_cli.config import settings
-from riven_cli.tui.screens.login import LoginScreen
 from riven_cli.tui.screens.dashboard import DashboardScreen
-from riven_cli.tui.screens.library import LibraryScreen
 from riven_cli.tui.screens.details import ItemDetailsScreen
-from riven_cli.tui.screens.settings import SettingsScreen
-from riven_cli.tui.screens.search import SearchScreen
+from riven_cli.tui.screens.library import LibraryScreen
+from riven_cli.tui.screens.login import LoginScreen
 from riven_cli.tui.screens.logs import LogsScreen
+from riven_cli.tui.screens.search import SearchScreen
+from riven_cli.tui.screens.settings import SettingsScreen
 
 
 class TUIApp:

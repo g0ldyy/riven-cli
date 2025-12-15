@@ -1,12 +1,14 @@
 from typing import Any
-from rich.panel import Panel
+
 from rich.align import Align
-from rich.text import Text
-from rich.layout import Layout
-from rich.table import Table
 from rich.console import Group
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 
 from riven_cli.api import client
+from riven_cli.utils import play_video
 
 
 class ItemDetailsScreen:
@@ -96,6 +98,16 @@ class ItemDetailsScreen:
             await self.fetch_details()
         except Exception as e:
             self.msg = f"Pause Failed: {str(e)}"
+
+    async def play_item(self):
+        if not self.item_id:
+            return
+
+        self.msg = "Launching player..."
+        try:
+            self.msg = play_video(self.item_id)
+        except Exception as e:
+            self.msg = str(e)
 
     def render(self):
         # Header
@@ -206,6 +218,7 @@ class ItemDetailsScreen:
         footer_text.append("[T] Retry ", style="bold green")
         footer_text.append("[P] Pause ", style="bold magenta")
         footer_text.append("[R] Refresh ", style="bold cyan")
+        footer_text.append("[W] Watch ", style="bold red")
 
         footer = Panel(Align.center(footer_text), title="Actions")
 
@@ -226,3 +239,5 @@ class ItemDetailsScreen:
             await self.retry_item()
         elif key.lower() == "p":
             await self.pause_item()
+        elif key.lower() == "w":
+            await self.play_item()

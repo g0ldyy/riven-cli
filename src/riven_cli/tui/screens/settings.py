@@ -1,16 +1,17 @@
-import asyncio
-import readchar
 import ast
-from rich.panel import Panel
-from rich.align import Align
-from rich.text import Text
-from rich.layout import Layout
-from rich.table import Table
-from rich import box
-from rich.console import Group
+import asyncio
 
-from riven_cli.config import settings, CONFIG_FILE
+import readchar
+from rich import box
+from rich.align import Align
+from rich.console import Group
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+
 from riven_cli.api import client
+from riven_cli.config import CONFIG_FILE, settings
 
 
 class SettingsScreen:
@@ -19,7 +20,7 @@ class SettingsScreen:
         self.active_tab = "local"  # "local" or "backend"
 
         # Local Settings State
-        self.local_items = ["api_url", "api_key"]
+        self.local_items = ["api_url", "api_key", "video_player"]
 
         # Backend Settings State
         self.backend_items: list[
@@ -151,6 +152,10 @@ class SettingsScreen:
         key_display = "*" * 8 + settings.api_key[-4:] if settings.api_key else "Not Set"
         table.add_row("API Key", key_display, style=style_key)
 
+        # Video Player
+        style_player = "reverse" if self.selected_index == 2 else ""
+        table.add_row("Video Player", settings.video_player, style=style_player)
+
         return Panel(table, title=f"Local Configuration ({CONFIG_FILE})")
 
     def _render_backend_tab(self):
@@ -203,7 +208,12 @@ class SettingsScreen:
     def _render_edit_panel(self):
         edit_title = ""
         if self.active_tab == "local":
-            edit_title = "API URL" if self.selected_index == 0 else "API Key"
+            if self.selected_index == 0:
+                edit_title = "API URL"
+            elif self.selected_index == 1:
+                edit_title = "API Key"
+            else:
+                edit_title = "Video Player"
         else:
             edit_title = self.backend_items[self.selected_index]["key"]
 
@@ -242,7 +252,7 @@ class SettingsScreen:
                 asyncio.create_task(self.fetch_backend_settings())
 
         elif key == readchar.key.DOWN or key == "j":
-            max_idx = 1 if self.active_tab == "local" else len(self.backend_items) - 1
+            max_idx = len(self.local_items) - 1 if self.active_tab == "local" else len(self.backend_items) - 1
             if self.selected_index < max_idx:
                 self.selected_index += 1
 
@@ -267,8 +277,10 @@ class SettingsScreen:
         if self.active_tab == "local":
             if self.selected_index == 0:
                 self.input_buffer = settings.api_url
-            else:
+            elif self.selected_index == 1:
                 self.input_buffer = settings.api_key or ""
+            else:
+                self.input_buffer = settings.video_player
         else:
             if self.backend_items:
                 val = self.backend_items[self.selected_index]["value"]
@@ -316,8 +328,10 @@ class SettingsScreen:
         if self.active_tab == "local":
             if self.selected_index == 0:
                 settings.api_url = new_val
-            else:
+            elif self.selected_index == 1:
                 settings.api_key = new_val
+            else:
+                settings.video_player = new_val
             self.message = (
                 "[yellow]Value updated locally. Press S to save to file.[/yellow]"
             )

@@ -1,12 +1,13 @@
 import asyncio
 import json
+
 import pyperclip
-from rich.panel import Panel
-from rich.align import Align
-from rich.text import Text
-from rich.layout import Layout
-from rich.console import Group
 import readchar
+from rich.align import Align
+from rich.console import Group
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.text import Text
 
 from riven_cli.api import client
 

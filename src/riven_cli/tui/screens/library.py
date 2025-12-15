@@ -1,14 +1,16 @@
 from typing import Any
-from rich.panel import Panel
-from rich.align import Align
-from rich.text import Text
-from rich.layout import Layout
-from rich.table import Table
-from rich.console import Group
-from rich import box
+
 import readchar
+from rich import box
+from rich.align import Align
+from rich.console import Group
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 
 from riven_cli.api import client
+from riven_cli.utils import play_video
 
 
 class LibraryScreen:
@@ -283,6 +285,7 @@ class LibraryScreen:
         footer_text.append("[T] Retry ", style="bold green")
         footer_text.append("[P] Pause ", style="bold magenta")
         footer_text.append("[R] Refresh ", style="bold cyan")
+        footer_text.append("[W] Watch ", style="bold red")
 
         footer = Panel(Align.center(footer_text), title="Actions")
 
@@ -353,6 +356,22 @@ class LibraryScreen:
                 await self.pause_item(self.items[self.selected_index])
         elif key.lower() == "r":
             await self.refresh_view(preserve_selection=True)
+        elif key.lower() == "w":
+            if self.items:
+                await self.play_item(self.items[self.selected_index])
+
+    async def play_item(self, item):
+        if item.get("type") not in ["movie", "episode"]:
+            self.message = (
+                f"[yellow]Cannot stream {item.get('type')}. Not a file.[/yellow]"
+            )
+            return
+
+        self.message = f"[yellow]Launching player for {item.get('title')}...[/yellow]"
+        try:
+            self.message = play_video(item["id"])
+        except Exception as e:
+            self.message = f"[red]Play Failed: {str(e)}[/red]"
 
     async def enter_folder(self, item):
         try:

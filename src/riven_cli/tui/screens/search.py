@@ -1,10 +1,10 @@
 import readchar
-from rich.panel import Panel
 from rich.align import Align
-from rich.text import Text
-from rich.layout import Layout
-from rich.table import Table
 from rich.console import Group
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
 
 from riven_cli.api import client
 from riven_cli.providers.tmdb import tmdb_client

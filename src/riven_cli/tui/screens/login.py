@@ -1,8 +1,8 @@
-from rich.panel import Panel
-from rich.align import Align
-from rich.text import Text
-from rich.console import Group
 import readchar
+from rich.align import Align
+from rich.console import Group
+from rich.panel import Panel
+from rich.text import Text
 
 from riven_cli.config import settings
 

@@ -1,11 +1,8 @@
 from pathlib import Path
-from pydantic_settings import (
-    BaseSettings,
-    SettingsConfigDict,
-    TomlConfigSettingsSource,
-    PydanticBaseSettingsSource,
-)
+
 from pydantic import Field
+from pydantic_settings import (BaseSettings, PydanticBaseSettingsSource,
+                               SettingsConfigDict, TomlConfigSettingsSource)
 
 APP_NAME = "riven-cli"
 CONFIG_DIR = Path.home() / ".config" / APP_NAME
@@ -17,6 +14,7 @@ class Settings(BaseSettings):
         default="http://localhost:8080", description="Riven Backend URL"
     )
     api_key: str | None = Field(default=None, description="Riven API Key")
+    video_player: str = Field(default="mpv", description="Video player command")
 
     model_config = SettingsConfigDict(
         env_prefix="RIVEN_", toml_file=CONFIG_FILE, extra="ignore"
@@ -41,6 +39,7 @@ class Settings(BaseSettings):
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         with open(CONFIG_FILE, "w") as f:
             f.write(f'api_url = "{self.api_url}"\n')
+            f.write(f'video_player = "{self.video_player}"\n')
             if self.api_key:
                 f.write(f'api_key = "{self.api_key}"\n')
             else:
