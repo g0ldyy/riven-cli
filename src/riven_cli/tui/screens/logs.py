@@ -10,10 +10,12 @@ from rich.panel import Panel
 from rich.text import Text
 
 from riven_cli.api import client
+from riven_cli.tui.base import Screen
 
 
-class LogsScreen:
+class LogsScreen(Screen):
     def __init__(self, app):
+        super().__init__(app)
         self.app = app
         self.logs: list[str] = []
         self.visible_logs: list[str] = []
@@ -24,7 +26,6 @@ class LogsScreen:
         self.scroll_offset = 0
         self.auto_scroll = True
         self.stream_task: asyncio.Task | None = None
-        # self.max_logs = 50000
 
     async def on_mount(self):
         if self.active_tab == "live":
@@ -113,8 +114,6 @@ class LogsScreen:
 
     def add_log(self, message: str, update_scroll=True):
         self.logs.append(message)
-        # if len(self.logs) > self.max_logs:
-        #     self.logs.pop(0)
 
         if self.auto_scroll and update_scroll:
             self.scroll_to_bottom()

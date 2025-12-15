@@ -8,21 +8,17 @@ from rich.text import Text
 
 from riven_cli.api import client
 from riven_cli.providers.tmdb import tmdb_client
+from riven_cli.tui.base import PaginatedListScreen
 
 
-class SearchScreen:
+class SearchScreen(PaginatedListScreen):
     def __init__(self, app):
-        self.app = app
+        super().__init__(app)
         self.query = ""
-        self.results = []
-        self.selected_index = 0
-        self.loading = False
-        self.error = None
-        self.message = None
+        # items replaced results
+        self.items = []
         self.input_mode = True  # Start in input mode
-        self.page = 1
-        self.total_pages = 1
-        self.scroll_offset = 0
+        self.available_rows_offset = 15
 
     async def shutdown(self):
         await tmdb_client.close()
@@ -32,12 +28,39 @@ class SearchScreen:
         self.total_pages = 1
         self.scroll_offset = 0
         self.selected_index = 0
-        self.results = []
+        self.items = []
+
+    async def fetch_items(self, preserve_selection=False):
+        self.loading = True
+        self.error = None
+        self.message = None
+
+        try:
+            data = await tmdb_client.search(self.query, page=self.page)
+            self.total_pages = data.get("total_pages", 1)
+
+            # Filter for only movie/tv
+            self.items = [
+                x
+                for x in data.get("results", [])
+                if x.get("media_type") in ["movie", "tv"]
+            ]
+
+            # Scroll offset logic is handled by base class or render, but fetch_wrapper usually resets selection if not preserved
+            if not preserve_selection:
+                self.selected_index = 0
+                self.scroll_offset = 0
+
+        except Exception as e:
+            self.error = str(e)
+            self.items = []
+        finally:
+            self.loading = False
 
     def render(self) -> Layout:
         # Header
         title = "Search & Add New Content"
-        if not self.input_mode and self.results:
+        if not self.input_mode and self.items:
             title += f" (Page {self.page}/{self.total_pages})"
 
         header = Panel(
@@ -59,40 +82,20 @@ class SearchScreen:
         content.append(Panel(search_text, title="Find Movies & Shows"))
 
         # Results
-        if self.loading and not self.results:
+        if self.loading and not self.items:
             content.append(
                 Align.center(Text("Searching TMDB...", style="yellow blink"))
             )
         elif self.error:
             content.append(Align.center(Text(f"Error: {self.error}", style="bold red")))
-        elif self.results:
+        elif self.items:
             table = Table(box=None, expand=True)
             table.add_column("Index", width=6)
             table.add_column("Type", width=8)
             table.add_column("Title", ratio=1)
             table.add_column("Year", width=6)
 
-            # Viewport Logic
-            # Calculate available height for the list
-            # Total height - header(3) - footer(3) - search_bar(3) - borders
-            # Approximate resizing logic
-            available_rows = max(5, self.app.console.size.height - 15)
-
-            # Adjust scroll_offset
-            if self.selected_index < self.scroll_offset:
-                self.scroll_offset = self.selected_index
-            elif self.selected_index >= self.scroll_offset + available_rows:
-                self.scroll_offset = self.selected_index - available_rows + 1
-
-            # Ensure scroll_offset is valid
-            self.scroll_offset = max(
-                0, min(self.scroll_offset, len(self.results) - available_rows)
-            )
-            self.scroll_offset = max(0, self.scroll_offset)
-
-            visible_items = self.results[
-                self.scroll_offset : self.scroll_offset + available_rows
-            ]
+            visible_items = self.calculate_visible_items()
 
             for i, item in enumerate(visible_items):
                 actual_index = self.scroll_offset + i
@@ -111,7 +114,7 @@ class SearchScreen:
                     str(actual_index + 1), media_type, title, year, style=style
                 )
 
-            content.append(Panel(table, title=f"Results ({len(self.results)})"))
+            content.append(Panel(table, title=f"Results ({len(self.items)})"))
         elif self.query and not self.input_mode:
             content.append(Align.center(Text("No results found.", style="dim")))
 
@@ -143,7 +146,7 @@ class SearchScreen:
                 if self.query.strip():
                     self.input_mode = False
                     self.start_search()
-                    await self.perform_search()
+                    await self.fetch_items()
             elif key == readchar.key.CTRL_Q:
                 self.app.switch_to("dashboard")
             elif key == readchar.key.BACKSPACE:
@@ -157,65 +160,14 @@ class SearchScreen:
             elif key == "s":
                 self.input_mode = True
                 self.query = ""
-                self.results = []
+                self.items = []
                 self.message = None
                 self.error = None
-            elif key == readchar.key.DOWN or key == "j":
-                if self.selected_index < len(self.results) - 1:
-                    self.selected_index += 1
-                elif self.page < self.total_pages:
-                    self.page += 1
-                    await self.perform_search()
-                    self.selected_index = 0
-            elif key == readchar.key.UP or key == "k":
-                if self.selected_index > 0:
-                    self.selected_index -= 1
-                elif self.page > 1:
-                    self.page -= 1
-                    await self.perform_search()
-                    self.selected_index = max(0, len(self.results) - 1)
-            elif key == readchar.key.RIGHT:  # Next Page
-                if self.page < self.total_pages:
-                    self.page += 1
-                    await self.perform_search()
-                    self.selected_index = 0
-            elif key == readchar.key.LEFT:  # Prev Page
-                if self.page > 1:
-                    self.page -= 1
-                    await self.perform_search()
-                    self.selected_index = 0
             elif key == readchar.key.ENTER:
-                if self.results:
-                    await self.add_item(self.results[self.selected_index])
-
-    async def perform_search(self):
-        self.loading = True
-        self.error = None
-        self.message = None
-        self.results = []
-
-        try:
-            data = await tmdb_client.search(self.query, page=self.page)
-            self.total_pages = data.get("total_pages", 1)
-
-            # Filter for only movie/tv
-            self.results = [
-                x
-                for x in data.get("results", [])
-                if x.get("media_type") in ["movie", "tv"]
-            ]
-
-            if not self.results and self.page < self.total_pages and self.page > 1:
-                pass
-
-            # If switching pages, scroll offset resets, selected index usually 0
-            # (handled by caller or reset here to be safe)
-            self.scroll_offset = 0
-
-        except Exception as e:
-            self.error = str(e)
-        finally:
-            self.loading = False
+                if self.items:
+                    await self.add_item(self.items[self.selected_index])
+            else:
+                await super().handle_navigation_input(key)
 
     async def add_item(self, item):
         self.message = f"Adding {item.get('title') or item.get('name')}..."

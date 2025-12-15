@@ -1,5 +1,3 @@
-from typing import Any
-
 import readchar
 from rich import box
 from rich.align import Align
@@ -10,20 +8,13 @@ from rich.table import Table
 from rich.text import Text
 
 from riven_cli.api import client
-from riven_cli.utils import play_video
+from riven_cli.tui.base import (ACTION_DEFINITIONS, ItemActionsMixin,
+                                PaginatedListScreen)
 
 
-class LibraryScreen:
+class LibraryScreen(PaginatedListScreen, ItemActionsMixin):
     def __init__(self, app):
-        self.app = app
-        self.items: list[dict[str, Any]] = []
-        self.loading = True
-        self.error: str | None = None
-        self.message: str | None = None
-        self.page = 1
-        self.total_pages = 1
-        self.selected_index = 0
-        self.scroll_offset = 0
+        super().__init__(app)
         self.selection_stack = []
         self.current_parent = None
 
@@ -76,52 +67,6 @@ class LibraryScreen:
             self.items = []
         finally:
             self.loading = False
-
-    async def delete_item(self, item):
-        if item.get("type") not in ["movie", "show"]:
-            self.message = (
-                f"[red]Cannot delete {item.get('type')}. Only Movies/Shows.[/red]"
-            )
-            return
-
-        self.message = f"[yellow]Deleting {item.get('title')}...[/yellow]"
-        try:
-            async with client as c:
-                await c.delete("/items/remove", json={"ids": [str(item["id"])]})
-            self.message = f"[green]Deleted {item.get('title')}[/green]"
-            await self.refresh_view(preserve_selection=True)
-        except Exception as e:
-            self.message = f"[red]Delete Failed: {str(e)}[/red]"
-
-    async def reset_item(self, item):
-        self.message = f"[yellow]Resetting {item.get('title')}...[/yellow]"
-        try:
-            async with client as c:
-                await c.post("/items/reset", json={"ids": [str(item["id"])]})
-            self.message = f"[green]Reset {item.get('title')}[/green]"
-            await self.refresh_view(preserve_selection=True)
-        except Exception as e:
-            self.message = f"[red]Reset Failed: {str(e)}[/red]"
-
-    async def retry_item(self, item):
-        self.message = f"[yellow]Retrying {item.get('title')}...[/yellow]"
-        try:
-            async with client as c:
-                await c.post("/items/retry", json={"ids": [str(item["id"])]})
-            self.message = f"[green]Retrying {item.get('title')}[/green]"
-            await self.refresh_view(preserve_selection=True)
-        except Exception as e:
-            self.message = f"[red]Retry Failed: {str(e)}[/red]"
-
-    async def pause_item(self, item):
-        self.message = f"[yellow]Pausing {item.get('title')}...[/yellow]"
-        try:
-            async with client as c:
-                await c.post("/items/pause", json={"ids": [str(item["id"])]})
-            self.message = f"[green]Paused {item.get('title')}[/green]"
-            await self.refresh_view(preserve_selection=True)
-        except Exception as e:
-            self.message = f"[red]Pause Failed: {str(e)}[/red]"
 
     async def fetch_folder_contents(self, item):
         async with client as c:
@@ -196,24 +141,7 @@ class LibraryScreen:
             table.add_column("State", width=12)
             table.add_column("Year", width=6)
 
-            # Viewport Logic
-            available_rows = max(5, self.app.console.size.height - 12)
-
-            # Adjust scroll_offset
-            if self.selected_index < self.scroll_offset:
-                self.scroll_offset = self.selected_index
-            elif self.selected_index >= self.scroll_offset + available_rows:
-                self.scroll_offset = self.selected_index - available_rows + 1
-
-            # Ensure scroll_offset is valid
-            self.scroll_offset = max(
-                0, min(self.scroll_offset, len(self.items) - available_rows)
-            )
-            self.scroll_offset = max(0, self.scroll_offset)  # Ensure it's not negative
-
-            visible_items = self.items[
-                self.scroll_offset : self.scroll_offset + available_rows
-            ]
+            visible_items = self.calculate_visible_items()
 
             for i, item in enumerate(visible_items):
                 # Calculate actual index in full list
@@ -280,12 +208,17 @@ class LibraryScreen:
         footer_text = Text()
         footer_text.append("[Q] Back  ", style="bold red")
         footer_text.append("[Left/Right] Page ", style="bold yellow")
-        footer_text.append("[D] Delete ", style="bold bg red")
-        footer_text.append("[S] Reset ", style="bold blue")
-        footer_text.append("[T] Retry ", style="bold green")
-        footer_text.append("[P] Pause ", style="bold magenta")
         footer_text.append("[R] Refresh ", style="bold cyan")
-        footer_text.append("[W] Watch ", style="bold red")
+
+        # Dynamic Item Actions
+        if self.items:
+            selected_item = self.items[self.selected_index]
+            valid_actions = self.get_valid_actions(selected_item)
+
+            for action_key in valid_actions:
+                action_def = ACTION_DEFINITIONS.get(action_key)
+                if action_def:
+                    footer_text.append(action_def["label"], style=action_def["style"])
 
         footer = Panel(Align.center(footer_text), title="Actions")
 
@@ -307,29 +240,8 @@ class LibraryScreen:
                 self.message = None
             else:
                 self.app.switch_to("dashboard")
-        elif key.lower() == "n" or key == readchar.key.RIGHT:  # Next Page
-            if self.page < self.total_pages:
-                self.page += 1
-                await self.fetch_items()
-        elif key == readchar.key.LEFT:  # Prev Page
-            if self.page > 1:
-                self.page -= 1
-                await self.fetch_items()
-        elif key == readchar.key.DOWN or key == "j":
-            if self.selected_index < len(self.items) - 1:
-                self.selected_index += 1
-            elif self.page < self.total_pages:
-                # Auto next page
-                self.page += 1
-                await self.fetch_items()
-        elif key == readchar.key.UP or key == "k":
-            if self.selected_index > 0:
-                self.selected_index -= 1
-            elif self.page > 1:
-                # Auto prev page
-                self.page -= 1
-                await self.fetch_items()
-                self.selected_index = len(self.items) - 1
+            return
+
         elif key == readchar.key.ENTER:
             if self.items:
                 selected_item = self.items[self.selected_index]
@@ -342,36 +254,43 @@ class LibraryScreen:
                     # Open Details
                     self.app.context["item_id"] = selected_item.get("id")
                     self.app.switch_to("details")
-        elif key.lower() == "d":
-            if self.items:
-                await self.delete_item(self.items[self.selected_index])
-        elif key.lower() == "s":
-            if self.items:
-                await self.reset_item(self.items[self.selected_index])
-        elif key.lower() == "t":
-            if self.items:
-                await self.retry_item(self.items[self.selected_index])
-        elif key.lower() == "p":
-            if self.items:
-                await self.pause_item(self.items[self.selected_index])
-        elif key.lower() == "r":
-            await self.refresh_view(preserve_selection=True)
-        elif key.lower() == "w":
-            if self.items:
-                await self.play_item(self.items[self.selected_index])
-
-    async def play_item(self, item):
-        if item.get("type") not in ["movie", "episode"]:
-            self.message = (
-                f"[yellow]Cannot stream {item.get('type')}. Not a file.[/yellow]"
-            )
             return
 
-        self.message = f"[yellow]Launching player for {item.get('title')}...[/yellow]"
-        try:
-            self.message = play_video(item["id"])
-        except Exception as e:
-            self.message = f"[red]Play Failed: {str(e)}[/red]"
+        elif key.lower() == "r":
+            await self.refresh_view(preserve_selection=True)
+            return
+
+        # Action Keys
+        if selected_item := (self.items[self.selected_index] if self.items else None):
+            key_lower = key.lower()
+            valid_actions = self.get_valid_actions(selected_item)
+
+            if key_lower in valid_actions:
+                if key_lower == "d":
+                    await self.delete_item(
+                        selected_item["id"], selected_item.get("title", "")
+                    )
+                elif key_lower == "s":
+                    await self.reset_item(
+                        selected_item["id"], selected_item.get("title", "")
+                    )
+                elif key_lower == "t":
+                    await self.retry_item(
+                        selected_item["id"], selected_item.get("title", "")
+                    )
+                elif key_lower == "p":
+                    await self.pause_item(
+                        selected_item["id"], selected_item.get("title", "")
+                    )
+                elif key_lower == "w":
+                    await self.play_item(
+                        selected_item["id"],
+                        selected_item.get("title", ""),
+                        selected_item.get("type", "movie"),
+                    )
+
+        # Standard Navigation
+        await super().handle_navigation_input(key)
 
     async def enter_folder(self, item):
         try:

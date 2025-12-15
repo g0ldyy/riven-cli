@@ -12,10 +12,12 @@ from rich.text import Text
 
 from riven_cli.api import client
 from riven_cli.config import CONFIG_FILE, settings
+from riven_cli.tui.base import Screen
 
 
-class SettingsScreen:
+class SettingsScreen(Screen):
     def __init__(self, app):
+        super().__init__(app)
         self.app = app
         self.active_tab = "local"  # "local" or "backend"
 
@@ -252,7 +254,11 @@ class SettingsScreen:
                 asyncio.create_task(self.fetch_backend_settings())
 
         elif key == readchar.key.DOWN or key == "j":
-            max_idx = len(self.local_items) - 1 if self.active_tab == "local" else len(self.backend_items) - 1
+            max_idx = (
+                len(self.local_items) - 1
+                if self.active_tab == "local"
+                else len(self.backend_items) - 1
+            )
             if self.selected_index < max_idx:
                 self.selected_index += 1
 

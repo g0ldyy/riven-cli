@@ -5,10 +5,12 @@ from rich.panel import Panel
 from rich.text import Text
 
 from riven_cli.config import settings
+from riven_cli.tui.base import Screen
 
 
-class LoginScreen:
+class LoginScreen(Screen):
     def __init__(self, app):
+        super().__init__(app)
         self.app = app
         self.step = "url"  # url or key
         self.api_url_input = settings.api_url

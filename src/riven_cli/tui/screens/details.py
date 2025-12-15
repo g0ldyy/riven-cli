@@ -8,17 +8,17 @@ from rich.table import Table
 from rich.text import Text
 
 from riven_cli.api import client
-from riven_cli.utils import play_video
+from riven_cli.tui.base import ACTION_DEFINITIONS, ItemActionsMixin, Screen
 
 
-class ItemDetailsScreen:
+class ItemDetailsScreen(Screen, ItemActionsMixin):
     def __init__(self, app):
-        self.app = app
+        super().__init__(app)
         self.item_id: int | None = None
         self.item: dict[str, Any] | None = None
         self.loading = True
         self.error: str | None = None
-        self.msg: str | None = None  # Status message (Success/Error of actions)
+        self.message: str | None = None  # Unified with Mixin
 
     async def on_mount(self):
         if hasattr(self.app, "context") and "item_id" in self.app.context:
@@ -33,7 +33,7 @@ class ItemDetailsScreen:
             return
         try:
             self.loading = True
-            self.msg = None
+            self.message = None
             async with client:
                 self.item = await client.get(
                     f"/items/{self.item_id}",
@@ -46,68 +46,8 @@ class ItemDetailsScreen:
         finally:
             self.loading = False
 
-    async def reset_item(self):
-        if not self.item_id:
-            return
-
-        self.msg = "Resetting..."
-        try:
-            async with client:
-                await client.post("/items/reset", json={"ids": [str(self.item_id)]})
-
-            self.msg = "Reset triggered"
-            await self.fetch_details()
-        except Exception as e:
-            self.msg = f"Reset Failed: {str(e)}"
-
-    async def delete_item(self):
-        if not self.item_id:
-            return
-
-        self.msg = "Deleting..."
-        try:
-            async with client:
-                await client.delete("/items/remove", json={"ids": [str(self.item_id)]})
-
-            self.app.switch_to("library")
-        except Exception as e:
-            self.msg = f"Delete Failed: {str(e)}"
-
-    async def retry_item(self):
-        if not self.item_id:
-            return
-
-        self.msg = "Retrying..."
-        try:
-            async with client:
-                await client.post("/items/retry", json={"ids": [str(self.item_id)]})
-            self.msg = "Retry triggered"
-            await self.fetch_details()
-        except Exception as e:
-            self.msg = f"Retry Failed: {str(e)}"
-
-    async def pause_item(self):
-        if not self.item_id:
-            return
-
-        self.msg = "Pausing..."
-        try:
-            async with client:
-                await client.post("/items/pause", json={"ids": [str(self.item_id)]})
-            self.msg = "Pause triggered"
-            await self.fetch_details()
-        except Exception as e:
-            self.msg = f"Pause Failed: {str(e)}"
-
-    async def play_item(self):
-        if not self.item_id:
-            return
-
-        self.msg = "Launching player..."
-        try:
-            self.msg = play_video(self.item_id)
-        except Exception as e:
-            self.msg = str(e)
+    async def refresh_view(self, preserve_selection=True):
+        await self.fetch_details()
 
     def render(self):
         # Header
@@ -201,9 +141,9 @@ class ItemDetailsScreen:
             # Stack them
             content = [p_general, p_file, p_media]
 
-            if self.msg:
+            if self.message:
                 content.insert(
-                    0, Panel(Text(self.msg, style="bold yellow"), title="Status")
+                    0, Panel(Text(self.message, style="bold yellow"), title="Status")
                 )
 
             body = Group(*content)
@@ -213,12 +153,15 @@ class ItemDetailsScreen:
         # Footer
         footer_text = Text()
         footer_text.append("[Q] Back  ", style="bold red")
-        footer_text.append("[D] Delete  ", style="bold bg red")
-        footer_text.append("[S] Reset  ", style="bold blue")
-        footer_text.append("[T] Retry ", style="bold green")
-        footer_text.append("[P] Pause ", style="bold magenta")
         footer_text.append("[R] Refresh ", style="bold cyan")
-        footer_text.append("[W] Watch ", style="bold red")
+
+        # Dynamic Item Actions
+        if self.item:
+            valid_actions = self.get_valid_actions(self.item)
+            for action_key in valid_actions:
+                action_def = ACTION_DEFINITIONS.get(action_key)
+                if action_def:
+                    footer_text.append(action_def["label"], style=action_def["style"])
 
         footer = Panel(Align.center(footer_text), title="Actions")
 
@@ -231,13 +174,24 @@ class ItemDetailsScreen:
             self.app.switch_to("library")
         elif key.lower() == "r":
             await self.fetch_details()
-        elif key.lower() == "s":
-            await self.reset_item()
-        elif key.lower() == "d":
-            await self.delete_item()
-        elif key.lower() == "t":
-            await self.retry_item()
-        elif key.lower() == "p":
-            await self.pause_item()
-        elif key.lower() == "w":
-            await self.play_item()
+
+        elif self.item:
+            key_lower = key.lower()
+            valid_actions = self.get_valid_actions(self.item)
+
+            if key_lower in valid_actions:
+                if key_lower == "s":
+                    if self.item_id:
+                        await self.reset_item(self.item_id, title="item")
+                elif key_lower == "d":
+                    if self.item_id:
+                        await self.delete_item(self.item_id, title="item")
+                elif key_lower == "t":
+                    if self.item_id:
+                        await self.retry_item(self.item_id, title="item")
+                elif key_lower == "p":
+                    if self.item_id:
+                        await self.pause_item(self.item_id, title="item")
+                elif key_lower == "w":
+                    if self.item_id:
+                        await self.play_item(self.item_id, title="item")

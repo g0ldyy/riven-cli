@@ -78,14 +78,3 @@ class TUIApp:
         self.current_screen = self.screens[screen_name]
         if hasattr(self.current_screen, "on_mount"):
             asyncio.create_task(self.current_screen.on_mount())
-
-
-class Screen:
-    def __init__(self, app: TUIApp):
-        self.app = app
-
-    def render(self):
-        raise NotImplementedError
-
-    async def handle_input(self, key: str):
-        pass

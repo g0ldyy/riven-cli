@@ -10,10 +10,12 @@ from rich.text import Text
 
 from riven_cli.api import client
 from riven_cli.config import settings
+from riven_cli.tui.base import Screen
 
 
-class DashboardScreen:
+class DashboardScreen(Screen):
     def __init__(self, app):
+        super().__init__(app)
         self.app = app
         self.stats: dict[str, Any] | None = None
         self.health: dict[str, Any] | None = None
