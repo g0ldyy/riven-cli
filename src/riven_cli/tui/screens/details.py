@@ -163,13 +163,19 @@ class ItemDetailsScreen:
             media_table.add_column("Value", style="white")
 
             if media_meta:
-                video = media_meta.get("video", {})
-                res = f"{video.get('resolution_width', '?')}x{video.get('resolution_height', '?')}"
-                codec = video.get("codec", "N/A")
+                video = media_meta.get("video")
+                if video:
+                    res = f"{video.get('resolution_width', '?')}x{video.get('resolution_height', '?')}"
+                    codec = video.get("codec", "N/A")
+                else:
+                    res = "N/A"
+                    codec = "N/A"
 
                 media_table.add_row("Resolution", res)
                 media_table.add_row("Codec", codec)
-                media_table.add_row("Source", media_meta.get("quality_source", "N/A"))
+                media_table.add_row(
+                    "Source", media_meta.get("quality_source", "N/A") or "N/A"
+                )
             else:
                 media_table.add_row("Info", "No media metadata")
 
