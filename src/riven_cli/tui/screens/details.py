@@ -51,7 +51,7 @@ class ItemDetailsScreen:
         self.msg = "Resetting..."
         try:
             async with client:
-                await client.post("/items/reset", json={"ids": f"{self.item_id}"})
+                await client.post("/items/reset", json={"ids": [str(self.item_id)]})
 
             self.msg = "Reset triggered"
             await self.fetch_details()
@@ -65,7 +65,7 @@ class ItemDetailsScreen:
         self.msg = "Deleting..."
         try:
             async with client:
-                await client.delete("/items/remove", params={"ids": str(self.item_id)})
+                await client.delete("/items/remove", json={"ids": [str(self.item_id)]})
 
             self.app.switch_to("library")
         except Exception as e:
@@ -78,7 +78,7 @@ class ItemDetailsScreen:
         self.msg = "Retrying..."
         try:
             async with client:
-                await client.post("/items/retry", json={"ids": str(self.item_id)})
+                await client.post("/items/retry", json={"ids": [str(self.item_id)]})
             self.msg = "Retry triggered"
             await self.fetch_details()
         except Exception as e:
@@ -91,7 +91,7 @@ class ItemDetailsScreen:
         self.msg = "Pausing..."
         try:
             async with client:
-                await client.post("/items/pause", json=str(self.item_id))
+                await client.post("/items/pause", json={"ids": [str(self.item_id)]})
             self.msg = "Pause triggered"
             await self.fetch_details()
         except Exception as e:

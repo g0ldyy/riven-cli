@@ -85,7 +85,7 @@ class LibraryScreen:
         self.message = f"[yellow]Deleting {item.get('title')}...[/yellow]"
         try:
             async with client as c:
-                await c.delete("/items/remove", params={"ids": str(item["id"])})
+                await c.delete("/items/remove", json={"ids": [str(item["id"])]})
             self.message = f"[green]Deleted {item.get('title')}[/green]"
             await self.refresh_view(preserve_selection=True)
         except Exception as e:
@@ -95,7 +95,7 @@ class LibraryScreen:
         self.message = f"[yellow]Resetting {item.get('title')}...[/yellow]"
         try:
             async with client as c:
-                await c.post("/items/reset", json={"ids": str(item["id"])})
+                await c.post("/items/reset", json={"ids": [str(item["id"])]})
             self.message = f"[green]Reset {item.get('title')}[/green]"
             await self.refresh_view(preserve_selection=True)
         except Exception as e:
@@ -105,7 +105,7 @@ class LibraryScreen:
         self.message = f"[yellow]Retrying {item.get('title')}...[/yellow]"
         try:
             async with client as c:
-                await c.post("/items/retry", json={"ids": str(item["id"])})
+                await c.post("/items/retry", json={"ids": [str(item["id"])]})
             self.message = f"[green]Retrying {item.get('title')}[/green]"
             await self.refresh_view(preserve_selection=True)
         except Exception as e:
@@ -115,7 +115,7 @@ class LibraryScreen:
         self.message = f"[yellow]Pausing {item.get('title')}...[/yellow]"
         try:
             async with client as c:
-                await c.post("/items/pause", json=str(item["id"]))
+                await c.post("/items/pause", json={"ids": [str(item["id"])]})
             self.message = f"[green]Paused {item.get('title')}[/green]"
             await self.refresh_view(preserve_selection=True)
         except Exception as e:
