@@ -38,12 +38,18 @@ class Settings(BaseSettings):
     def save(self):
         CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         with open(CONFIG_FILE, "w") as f:
-            f.write(f'api_url = "{self.api_url}"\n')
-            f.write(f'video_player = "{self.video_player}"\n')
-            if self.api_key:
-                f.write(f'api_key = "{self.api_key}"\n')
-            else:
-                f.write('# api_key = "YOUR_KEY"\n')
+            for key, value in self.model_dump().items():
+                if value is None:
+                    f.write(f'# {key} = "None"\n')
+                else:
+                    if isinstance(value, bool):
+                        val_str = str(value).lower()
+                    elif isinstance(value, (int, float)):
+                        val_str = str(value)
+                    else:
+                        val_str = f'"{value}"'
+
+                    f.write(f"{key} = {val_str}\n")
 
 
 settings = Settings()

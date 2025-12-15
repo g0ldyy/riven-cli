@@ -22,7 +22,8 @@ class SettingsScreen(Screen):
         self.active_tab = "local"  # "local" or "backend"
 
         # Local Settings State
-        self.local_items = ["api_url", "api_key", "video_player"]
+        self.local_items = []
+        self.load_local_settings()
 
         # Backend Settings State
         self.backend_items: list[
@@ -41,6 +42,22 @@ class SettingsScreen(Screen):
 
     async def on_mount(self):
         pass
+
+    def load_local_settings(self):
+        self.local_items = []
+        schema = settings.model_json_schema()
+        properties = schema.get("properties", {})
+
+        for name, field_info in properties.items():
+            value = getattr(settings, name)
+            self.local_items.append(
+                {
+                    "key": name,
+                    "value": value,
+                    "type": field_info.get("type", "string"),
+                    "title": field_info.get("title", name.replace("_", " ").title()),
+                }
+            )
 
     async def fetch_backend_settings(self):
         self.loading = True
@@ -145,18 +162,15 @@ class SettingsScreen(Screen):
         table.add_column("Setting", width=20)
         table.add_column("Value", ratio=1)
 
-        # API URL
-        style_url = "reverse" if self.selected_index == 0 else ""
-        table.add_row("API URL", settings.api_url, style=style_url)
+        for i, item in enumerate(self.local_items):
+            style = "reverse" if self.selected_index == i else ""
 
-        # API Key
-        style_key = "reverse" if self.selected_index == 1 else ""
-        key_display = "*" * 8 + settings.api_key[-4:] if settings.api_key else "Not Set"
-        table.add_row("API Key", key_display, style=style_key)
+            val = item["value"]
+            val_display = str(val)
+            if item["key"] == "api_key" and val:
+                val_display = "*" * 8 + val[-4:]
 
-        # Video Player
-        style_player = "reverse" if self.selected_index == 2 else ""
-        table.add_row("Video Player", settings.video_player, style=style_player)
+            table.add_row(item["title"], val_display, style=style)
 
         return Panel(table, title=f"Local Configuration ({CONFIG_FILE})")
 
@@ -210,12 +224,7 @@ class SettingsScreen(Screen):
     def _render_edit_panel(self):
         edit_title = ""
         if self.active_tab == "local":
-            if self.selected_index == 0:
-                edit_title = "API URL"
-            elif self.selected_index == 1:
-                edit_title = "API Key"
-            else:
-                edit_title = "Video Player"
+            edit_title = self.local_items[self.selected_index]["title"]
         else:
             edit_title = self.backend_items[self.selected_index]["key"]
 
@@ -281,12 +290,8 @@ class SettingsScreen(Screen):
         self.message = None
 
         if self.active_tab == "local":
-            if self.selected_index == 0:
-                self.input_buffer = settings.api_url
-            elif self.selected_index == 1:
-                self.input_buffer = settings.api_key or ""
-            else:
-                self.input_buffer = settings.video_player
+            val = self.local_items[self.selected_index]["value"]
+            self.input_buffer = str(val) if val is not None else ""
         else:
             if self.backend_items:
                 val = self.backend_items[self.selected_index]["value"]
@@ -332,12 +337,12 @@ class SettingsScreen(Screen):
         new_val = self.input_buffer
 
         if self.active_tab == "local":
-            if self.selected_index == 0:
-                settings.api_url = new_val
-            elif self.selected_index == 1:
-                settings.api_key = new_val
-            else:
-                settings.video_player = new_val
+            item = self.local_items[self.selected_index]
+            key = item["key"]
+
+            setattr(settings, key, new_val)
+            self.load_local_settings()
+
             self.message = (
                 "[yellow]Value updated locally. Press S to save to file.[/yellow]"
             )
